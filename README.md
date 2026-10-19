@@ -90,7 +90,39 @@ Each one is marked `ASSUMPTION` in the code.
 
 Inference speed is not reported from this run, because the original timing code did not wait for the Apple GPU to finish. `train.py` is now fixed, so re-run it to measure speed.
 
-Figures: `results/confusion_4class.png`, `results/training_curves.png`, and `results/figures/` (made by `visualize.py`).
+## Charts
+
+### Training and results
+
+| Training curves | 4-class confusion matrix |
+|---|---|
+| ![Training loss and validation F1 over 53 epochs](results/training_curves.png) | ![4-class confusion matrix on 4,000 held-out synthetic curves](results/confusion_4class.png) |
+
+| Variable vs. not variable | Example synthetic light curves |
+|---|---|
+| ![Real-vs-bogus confusion matrix](results/confusion_real_bogus.png) | ![Example synthetic light curves for each class](results/synthetic_examples.png) |
+
+### How the model sees the data
+
+**Preprocessing:** raw flux, then median/IQR scaling, then the arcsinh-compressed input.
+![Preprocessing steps for one curve per class](results/figures/1_preprocessing.png)
+
+**Wavelet decomposition:** the bior2.2 split into a smooth approximation and fast-changing detail.
+![Wavelet approximation and detail for each class](results/figures/2_wavelet.png)
+
+**Learned Fourier frequencies:** the 700 positions move only slightly (about ±0.03) from their starting grid.
+![Initial vs learned FEFT frequency positions](results/figures/3_learned_frequencies.png)
+
+### Error analysis
+
+**Performance by signal strength:** macro F1 is 0.96 on the weakest fifth of signals and 0.99 elsewhere.
+![Macro F1 by signal-to-noise quintile](results/figures/4_f1_by_snr.png)
+
+**Misclassified curves:** most errors are faint variables read as constant, or pulsators and eclipses confused with each other.
+![Examples of misclassified light curves](results/figures/5_misclassified.png)
+
+**Confidence** (log scale): correct predictions pile up near 1.0, but some wrong predictions are also very confident (0.95–1.0). Since the paper ranks candidates by confidence, a high score alone doesn't guarantee a correct label.
+![Prediction confidence for correct vs wrong predictions](results/figures/6_confidence.png)
 
 ## Next step: real NEOWISE test set
 
