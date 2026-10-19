@@ -1,0 +1,83 @@
+{
+  "setting": {
+    "epochs": 53,
+    "per_epoch": 20000,
+    "batch": 64,
+    "samples": 700,
+    "lr": 8.5e-05,
+    "wd": 3.162277660168379e-06,
+    "val": 2000,
+    "test": 4000,
+    "seed": 0,
+    "paper_scale": true,
+    "out": "results"
+  },
+  "device": "mps",
+  "curves_seen": 1058304,
+  "test_set": "synthetic, held out",
+  "test_size": 4000,
+  "four_class": {
+    "precision": 0.987474878171272,
+    "recall": 0.987553557515465,
+    "f1": 0.9874419067670509,
+    "accuracy": 0.9875,
+    "confusion": [
+      [
+        979,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        1023,
+        3,
+        0
+      ],
+      [
+        14,
+        4,
+        1004,
+        10
+      ],
+      [
+        13,
+        0,
+        6,
+        944
+      ]
+    ]
+  },
+  "real_bogus": {
+    "precision": 0.9865805168986084,
+    "recall": 0.9955312810327706,
+    "f1": 0.9909546034158936,
+    "accuracy": 0.99325,
+    "confusion": [
+      [
+        979,
+        0
+      ],
+      [
+        27,
+        2994
+      ]
+    ]
+  },
+  "inference_us_per_source": 6.140675395727158,
+  "paper_reference": {
+    "note": "Paper metrics are on 231 REAL NEOWISE sources, not synthetic data",
+    "four_class": {
+      "precision": 0.918,
+      "recall": 0.91,
+      "f1": 0.914,
+      "accuracy": 0.922
+    },
+    "real_bogus": {
+      "precision": 0.973,
+      "recall": 0.975,
+      "f1": 0.974,
+      "accuracy": 0.974
+    }
+  }
+}
