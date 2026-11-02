@@ -139,3 +139,8 @@ The paper's test set has 48 eclipsing binaries, 49 pulsators and 34 transients f
 The original method and paper are by **M. Paz (2024)**, *The Astronomical Journal* 168:241, published under the CC BY 4.0 license. All code in this repository is my independent reimplementation.
 
 **Author:** Yoga Sundaram Rama Swamy · [Portfolio](https://yogasundaram95.github.io/yoga_sundaram/) · [LinkedIn](https://linkedin.com/in/yogasundaram)
+
+
+## Evaluate on real NEOWISE observations
+
+The checked-in checkpoint was trained on synthetic light curves. A separate workflow now fetches real W1 single-exposure observations from NASA/IPAC IRSA for a labeled coordinate catalog and reports metrics on the usable sources. Start with [the real-data guide](docs/real-data-evaluation.md) and [CSV template](data/real_catalog_template.csv), then run `python evaluate_real.py --catalog data/my_labeled_sources.csv`. The original paper does not publish all 231 validation-source coordinates and labels, so this workflow does not claim to reproduce its exact catalog or score.
