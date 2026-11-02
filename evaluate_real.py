@@ -92,7 +92,8 @@ def main():
     parser.add_argument("--batch-size", type=int, default=16)
     args = parser.parse_args()
 
-    sources = pd.read_csv(args.catalog)
+    # Keep the literal label "null"; pandas otherwise interprets it as NaN.
+    sources = pd.read_csv(args.catalog, keep_default_na=False)
     required = {"source_id", "ra_deg", "dec_deg", "label"}
     missing = required - set(sources.columns)
     if missing:
