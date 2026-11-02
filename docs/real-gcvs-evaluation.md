@@ -41,8 +41,7 @@ class have usable curves.
 
 ## Status
 
-The catalog and evaluation path are prepared. The full 80-source IRSA run did
-not complete in the current session because IRSA connection attempts timed out.
+The catalog and evaluation path are prepared. Per-source requests timed out during the full run, and a single uploaded-table query for all 80 positions did not return within 15 minutes.
 The completed real-data result remains the four-source pilot in
 [`results/real-pilot/`](../results/real-pilot/); no score is claimed for the
 80-source list until the archive queries finish.
