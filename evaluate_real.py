@@ -42,6 +42,8 @@ def fetch_curve(source, radius_arcsec: float, min_points: int):
         catalog=CATALOG,
         spatial="Cone",
         radius=radius_arcsec * u.arcsec,
+        columns="mjd,ra,dec,w1mpro,w1sigmpro,cc_flags,qual_frame",
+        async_job=True,
     )
     if len(table) == 0:
         return None, "no_irsa_rows"
@@ -153,6 +155,7 @@ def main():
     precision, recall, f1, support = precision_recall_fscore_support(
         y_true, y_pred, labels=np.arange(len(CLASSES)), zero_division=0
     )
+    supported = support > 0
     metrics = {
         "data_source": "NASA/IPAC IRSA NEOWISE-R Single-exposure Source Table",
         "catalog": CATALOG,
@@ -162,9 +165,10 @@ def main():
         "usable_sources": len(curves),
         "excluded_sources": len(sources) - len(curves),
         "accuracy": float(accuracy_score(y_true, y_pred)),
-        "macro_precision": float(precision.mean()),
-        "macro_recall": float(recall.mean()),
-        "macro_f1": float(f1.mean()),
+        "macro_precision": float(precision[supported].mean()),
+        "macro_recall": float(recall[supported].mean()),
+        "macro_f1": float(f1[supported].mean()),
+        "macro_averaging_scope": "classes with at least one usable labeled source",
         "class_order": CLASSES,
         "per_class": {
             name: {
