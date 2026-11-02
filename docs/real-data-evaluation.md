@@ -42,13 +42,13 @@ python evaluate_real.py --catalog data/my_labeled_sources.csv
 The script fetches a 3 arcsec cone around each coordinate from the IRSA
 `neowiser_p1bs_psd` table, keeps finite W1 detections with positive magnitude
 uncertainty, rejects nonzero W1 artifact flags and (when present) frames with
-`qual_frame <= 0), and requires at least 32 usable observations. It converts
+`qual_frame <= 0`, and requires at least 32 usable observations. It converts
 W1 magnitude and magnitude uncertainty to Jy and Jy uncertainty, then applies
 the repository's paper-based preprocessing. Outputs are written to
 `results/real/predictions.csv` and `results/real/metrics.json`.
 
 Network access to IRSA is required. Queries are performed one source at a time;
-a 231-source catalog can take several minutes. Per-source failures and
+a 231-source catalog can take several minutes. IRSA TAP is queried asynchronously with retries for transient archive failures. Per-source failures and
 insufficient light curves are retained in the predictions file as statuses.
 
 ## Interpretation
@@ -59,3 +59,14 @@ reproduce the paper's score by itself. The result is meaningful only to the
 extent that the supplied labels are independently grounded and the sample
 selection is documented. Scores should report the number of usable objects per
 class alongside the metrics.
+
+
+## Four-source pilot
+
+Run the checked-in pilot with:
+
+```bash
+python evaluate_real.py --catalog data/real_pilot_sources.csv --out results/real-pilot
+```
+
+The recorded pilot fetched all four curves (351, 438, 69, and 885 clean observations). The model got 2/4 correct: it classified CV Boo and V2860 Ori correctly, but predicted null for pulsator VZ Boo and transit for null example HD 165459. Accuracy was 0.50 and macro F1 was 0.417. With only one source per class, these values are a smoke evaluation, not a useful performance estimate. See [provenance](real-pilot-provenance.md), [predictions](../results/real-pilot/predictions.csv), and [metrics](../results/real-pilot/metrics.json).
