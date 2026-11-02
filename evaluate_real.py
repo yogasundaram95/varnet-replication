@@ -13,13 +13,14 @@ import math
 from pathlib import Path
 import time
 from datetime import datetime, timezone
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import numpy as np
 import pandas as pd
 import torch
 from astropy import units as u
 from astropy.coordinates import SkyCoord
-from astroquery.ipac.irsa import Irsa
+from astroquery.ipac.irsa import IrsaClass
 from sklearn.metrics import (
     accuracy_score,
     confusion_matrix,
@@ -42,7 +43,7 @@ def fetch_curve(source, radius_arcsec: float, min_points: int):
     coord = SkyCoord(float(source.ra_deg) * u.deg, float(source.dec_deg) * u.deg)
     for attempt in range(3):
         try:
-            table = Irsa.query_region(
+            table = IrsaClass().query_region(
                 coord,
                 catalog=CATALOG,
                 spatial="Cone",
@@ -94,6 +95,42 @@ def fetch_curve(source, radius_arcsec: float, min_points: int):
     return preprocess(mjd, flux, flux_err), f"ok:{len(mjd)}"
 
 
+def calibration_metrics(probabilities, y_true):
+    confidence = probabilities.max(axis=1)
+    correct = probabilities.argmax(axis=1) == y_true
+    bins = np.minimum(np.digitize(confidence, np.linspace(0, 1, 11)) - 1, 9)
+    ece = sum(
+        (bins == i).mean() * abs(correct[bins == i].mean() - confidence[bins == i].mean())
+        for i in range(10) if np.any(bins == i)
+    )
+    targets = np.eye(len(CLASSES))[y_true]
+    return float(ece), float(np.square(probabilities - targets).sum(axis=1).mean())
+
+
+def bootstrap_intervals(y_true, y_pred, n_bootstrap: int, seed: int = 2026):
+    support = np.bincount(y_true, minlength=len(CLASSES))
+    if n_bootstrap < 1 or support.min() < 10:
+        return None
+    rng = np.random.default_rng(seed)
+    by_class = [np.flatnonzero(y_true == label) for label in range(len(CLASSES))]
+    accuracies, macro_f1s = [], []
+    for _ in range(n_bootstrap):
+        sampled = np.concatenate([
+            rng.choice(indices, size=len(indices), replace=True) for indices in by_class
+        ])
+        pr, rc, f1, _ = precision_recall_fscore_support(
+            y_true[sampled], y_pred[sampled], labels=np.arange(len(CLASSES)), zero_division=0
+        )
+        accuracies.append(float((y_true[sampled] == y_pred[sampled]).mean()))
+        macro_f1s.append(float(f1.mean()))
+    return {
+        "method": "stratified source bootstrap",
+        "replicates": n_bootstrap,
+        "accuracy_95_percent": np.percentile(accuracies, [2.5, 97.5]).tolist(),
+        "macro_f1_95_percent": np.percentile(macro_f1s, [2.5, 97.5]).tolist(),
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--catalog", required=True, help="CSV with source_id, ra_deg, dec_deg, label")
@@ -102,6 +139,8 @@ def main():
     parser.add_argument("--radius-arcsec", type=float, default=3.0)
     parser.add_argument("--min-points", type=int, default=32)
     parser.add_argument("--batch-size", type=int, default=16)
+    parser.add_argument("--workers", type=int, default=1, help="concurrent asynchronous IRSA queries; use 1 to limit archive load")
+    parser.add_argument("--bootstrap", type=int, default=2000)
     args = parser.parse_args()
 
     # Keep the literal label "null"; pandas otherwise interprets it as NaN.
@@ -110,7 +149,11 @@ def main():
     missing = required - set(sources.columns)
     if missing:
         raise SystemExit(f"Catalog is missing columns: {sorted(missing)}")
-    unknown = sorted(set(sources["label"].dropna()) - set(CLASSES))
+    sources["source_id"] = sources["source_id"].astype(str).str.strip()
+    sources["label"] = sources["label"].astype(str).str.strip()
+    if sources["source_id"].duplicated().any():
+        raise SystemExit("source_id values must be unique after trimming whitespace")
+    unknown = sorted(set(sources["label"]) - set(CLASSES))
     if unknown:
         raise SystemExit(f"Unknown labels {unknown}; choose from {CLASSES}")
     if sources["source_id"].duplicated().any():
@@ -118,26 +161,55 @@ def main():
     if sources[list(required)].isna().any().any():
         raise SystemExit("Catalog contains missing IDs, coordinates, or labels")
 
-    records, curves, labels = [], [], []
+    sources["ra_deg"] = pd.to_numeric(sources["ra_deg"], errors="coerce")
+    sources["dec_deg"] = pd.to_numeric(sources["dec_deg"], errors="coerce")
+    if (sources["source_id"].eq("").any() or sources["ra_deg"].isna().any()
+            or sources["dec_deg"].isna().any() or sources["label"].eq("").any()):
+        raise SystemExit("Catalog contains blank IDs, invalid coordinates, or blank labels")
+    if (not sources["ra_deg"].between(0, 360).all()
+            or not sources["dec_deg"].between(-90, 90).all()):
+        raise SystemExit("Catalog coordinates are outside valid RA/Dec ranges")
+
+    records = []
     for row in sources.itertuples(index=False):
-        try:
-            curve, status = fetch_curve(row, args.radius_arcsec, args.min_points)
-        except Exception as exc:
-            curve, status = None, f"query_error:{type(exc).__name__}:{exc}"
-        records.append({
+        record = {
             "source_id": row.source_id,
             "label": row.label,
-            "status": status,
-            "n_observations": int(status.split(":")[-1]) if status.startswith("ok:") else 0,
-        })
-        if curve is not None:
-            curves.append(curve)
-            labels.append(CLASSES.index(row.label))
+            "status": "pending",
+            "n_observations": 0,
+        }
+        for metadata in ("catalog_type", "nova_year", "catalog"):
+            if hasattr(row, metadata):
+                record[metadata] = getattr(row, metadata)
+        records.append(record)
 
-    usable_indices = [i for i, r in enumerate(records) if r["status"].startswith("ok:")]
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    status_path = out / "retrieval_status.csv"
+    pd.DataFrame(records).to_csv(status_path, index=False)
+    curves_by_index = {}
+    futures = {}
+    with ThreadPoolExecutor(max_workers=max(1, args.workers)) as pool:
+        for index, row in enumerate(sources.itertuples(index=False)):
+            futures[pool.submit(fetch_curve, row, args.radius_arcsec, args.min_points)] = index
+        for completed, future in enumerate(as_completed(futures), start=1):
+            index = futures[future]
+            row = sources.iloc[index]
+            try:
+                curve, status = future.result()
+            except Exception as exc:
+                curve, status = None, f"query_error:{type(exc).__name__}:{exc}"
+            records[index]["status"] = status
+            records[index]["n_observations"] = int(status.split(":")[-1]) if status.startswith("ok:") else 0
+            if curve is not None:
+                curves_by_index[index] = curve
+            pd.DataFrame(records).to_csv(status_path, index=False)
+            print(f"[{completed}/{len(sources)}] {row['source_id']}: {status}", flush=True)
+
+    usable_indices = sorted(curves_by_index)
+    curves = [curves_by_index[i] for i in usable_indices]
+    labels = [CLASSES.index(sources.iloc[i]["label"]) for i in usable_indices]
     if not curves:
-        out = Path(args.out)
-        out.mkdir(parents=True, exist_ok=True)
         pd.DataFrame(records).to_csv(out / "predictions.csv", index=False)
         raise SystemExit("No usable light curves were retrieved; see per-source statuses.")
 
@@ -169,6 +241,9 @@ def main():
         y_true, y_pred, labels=np.arange(len(CLASSES)), zero_division=0
     )
     supported = support > 0
+    ece, brier = calibration_metrics(probs, y_true)
+    input_support = sources["label"].value_counts().to_dict()
+    usable_support = {name: int(support[i]) for i, name in enumerate(CLASSES)}
     metrics = {
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "data_source": "NASA/IPAC IRSA NEOWISE-R Single-exposure Source Table",
@@ -180,11 +255,19 @@ def main():
         "input_sources": len(sources),
         "usable_sources": len(curves),
         "excluded_sources": len(sources) - len(curves),
+        "input_class_support": {name: int(input_support.get(name, 0)) for name in CLASSES},
+        "usable_class_support": usable_support,
         "accuracy": float(accuracy_score(y_true, y_pred)),
         "macro_precision": float(precision[supported].mean()),
         "macro_recall": float(recall[supported].mean()),
         "macro_f1": float(f1[supported].mean()),
         "macro_averaging_scope": "classes with at least one usable labeled source",
+        "confidence_calibration": {"expected_calibration_error_10_bins": ece, "multiclass_brier_score": brier},
+        "bootstrap_confidence_intervals": bootstrap_intervals(y_true, y_pred, args.bootstrap),
+        "baselines": {
+            "uniform_random_accuracy": 1.0 / len(CLASSES),
+            "majority_class_accuracy": max(usable_support.values()) / len(curves),
+        },
         "class_order": CLASSES,
         "per_class": {
             name: {
@@ -206,8 +289,6 @@ def main():
         "note": "Real-data result on the supplied labeled catalog; not directly comparable to the paper unless the exact source list and selection are reproduced.",
     }
 
-    out = Path(args.out)
-    out.mkdir(parents=True, exist_ok=True)
     pd.DataFrame(records).to_csv(out / "predictions.csv", index=False)
     (out / "metrics.json").write_text(json.dumps(metrics, indent=2) + "\n")
     print(json.dumps(metrics, indent=2))
