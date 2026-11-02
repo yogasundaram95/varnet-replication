@@ -149,3 +149,8 @@ The checked-in checkpoint was trained on synthetic light curves. A separate work
 ### First real-data pilot
 
 I queried real IRSA W1 light curves for four documented sources (one per class): all four had at least 32 quality-filtered observations. The checkpoint got **2 of 4 correct** (accuracy 0.50; macro F1 0.417). It correctly classified CV Boo and the nova V2860 Ori, and mislabeled the pulsator VZ Boo as null and the null example HD 165459 as transit. With only one hand-picked source per class, these numbers are an exploratory smoke evaluation, not a reliable benchmark. See the [source provenance](docs/real-pilot-provenance.md), [predictions](results/real-pilot/predictions.csv), and [metrics](results/real-pilot/metrics.json).
+
+
+### Expanded catalog
+
+I also assembled an independent [80-source GCVS manifest](data/real_sources_20_per_class.csv), 20 objects per class, with a [reproducible builder](scripts/build_real_catalog.py). Its full scoring run is pending: IRSA connection timeouts interrupted the archive queries in this session. The completed result above is still the four-source pilot; no 80-source score is reported. See the [expanded-set method and status](docs/real-gcvs-evaluation.md).
