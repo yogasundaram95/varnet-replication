@@ -70,3 +70,8 @@ python evaluate_real.py --catalog data/real_pilot_sources.csv --out results/real
 ```
 
 The recorded pilot fetched all four curves (351, 438, 69, and 885 clean observations). The model got 2/4 correct: it classified CV Boo and V2860 Ori correctly, but predicted null for pulsator VZ Boo and transit for null example HD 165459. Accuracy was 0.50 and macro F1 was 0.417. With only one source per class, these values are a smoke evaluation, not a useful performance estimate. See [provenance](real-pilot-provenance.md), [predictions](../results/real-pilot/predictions.csv), and [metrics](../results/real-pilot/metrics.json).
+
+
+## Larger independent catalog
+
+The [80-source GCVS catalog](../data/real_sources_20_per_class.csv) and [builder](../scripts/build_real_catalog.py) provide 20 sources per class, with an independent, traceable label source. See [selection rules and current run status](real-gcvs-evaluation.md). The 80-source score is not available yet because IRSA timed out during the bulk evaluation attempt.
