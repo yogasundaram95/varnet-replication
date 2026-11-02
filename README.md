@@ -144,3 +144,8 @@ The original method and paper are by **M. Paz (2024)**, *The Astronomical Journa
 ## Evaluate on real NEOWISE observations
 
 The checked-in checkpoint was trained on synthetic light curves. A separate workflow now fetches real W1 single-exposure observations from NASA/IPAC IRSA for a labeled coordinate catalog and reports metrics on the usable sources. Start with [the real-data guide](docs/real-data-evaluation.md) and [CSV template](data/real_catalog_template.csv), then run `python evaluate_real.py --catalog data/my_labeled_sources.csv`. The original paper does not publish all 231 validation-source coordinates and labels, so this workflow does not claim to reproduce its exact catalog or score.
+
+
+### First real-data pilot
+
+I queried real IRSA W1 light curves for four documented sources (one per class): all four had at least 32 quality-filtered observations. The checkpoint got **2 of 4 correct** (accuracy 0.50; macro F1 0.417). It correctly classified CV Boo and the nova V2860 Ori, and mislabeled the pulsator VZ Boo as null and the null example HD 165459 as transit. With only one hand-picked source per class, these numbers are an exploratory smoke evaluation, not a reliable benchmark. See the [source provenance](docs/real-pilot-provenance.md), [predictions](results/real-pilot/predictions.csv), and [metrics](results/real-pilot/metrics.json).
