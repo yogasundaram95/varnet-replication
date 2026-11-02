@@ -10,6 +10,7 @@ import argparse
 import json
 import math
 from pathlib import Path
+import time
 
 import numpy as np
 import pandas as pd
@@ -37,14 +38,21 @@ def finite_column(table, name):
 
 def fetch_curve(source, radius_arcsec: float, min_points: int):
     coord = SkyCoord(float(source.ra_deg) * u.deg, float(source.dec_deg) * u.deg)
-    table = Irsa.query_region(
-        coord,
-        catalog=CATALOG,
-        spatial="Cone",
-        radius=radius_arcsec * u.arcsec,
-        columns="mjd,ra,dec,w1mpro,w1sigmpro,cc_flags,qual_frame",
-        async_job=True,
-    )
+    for attempt in range(3):
+        try:
+            table = Irsa.query_region(
+                coord,
+                catalog=CATALOG,
+                spatial="Cone",
+                radius=radius_arcsec * u.arcsec,
+                columns="mjd,ra,dec,w1mpro,w1sigmpro,cc_flags,qual_frame",
+                async_job=True,
+            )
+            break
+        except Exception:
+            if attempt == 2:
+                raise
+            time.sleep(2 * (attempt + 1))
     if len(table) == 0:
         return None, "no_irsa_rows"
 
@@ -126,6 +134,9 @@ def main():
 
     usable_indices = [i for i, r in enumerate(records) if r["status"].startswith("ok:")]
     if not curves:
+        out = Path(args.out)
+        out.mkdir(parents=True, exist_ok=True)
+        pd.DataFrame(records).to_csv(out / "predictions.csv", index=False)
         raise SystemExit("No usable light curves were retrieved; see per-source statuses.")
 
     device = ("cuda" if torch.cuda.is_available()
