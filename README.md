@@ -139,3 +139,18 @@ The paper's test set has 48 eclipsing binaries, 49 pulsators and 34 transients f
 The original method and paper are by **M. Paz (2024)**, *The Astronomical Journal* 168:241, published under the CC BY 4.0 license. All code in this repository is my independent reimplementation.
 
 **Author:** Yoga Sundaram Rama Swamy · [Portfolio](https://yogasundaram95.github.io/yoga_sundaram/) · [LinkedIn](https://linkedin.com/in/yogasundaram)
+
+
+## Evaluate on real NEOWISE observations
+
+The checked-in checkpoint was trained on synthetic light curves. A separate workflow now fetches real W1 single-exposure observations from NASA/IPAC IRSA for a labeled coordinate catalog and reports metrics on the usable sources. Start with [the real-data guide](docs/real-data-evaluation.md) and [CSV template](data/real_catalog_template.csv), then run `python evaluate_real.py --catalog data/my_labeled_sources.csv`. The original paper does not publish all 231 validation-source coordinates and labels, so this workflow does not claim to reproduce its exact catalog or score.
+
+
+### First real-data pilot
+
+I queried real IRSA W1 light curves for four documented sources (one per class): all four had at least 32 quality-filtered observations. The checkpoint got **2 of 4 correct** (accuracy 0.50; macro F1 0.417). It correctly classified CV Boo and the nova V2860 Ori, and mislabeled the pulsator VZ Boo as null and the null example HD 165459 as transit. With only one hand-picked source per class, these numbers are an exploratory smoke evaluation, not a reliable benchmark. See the [source provenance](docs/real-pilot-provenance.md), [predictions](results/real-pilot/predictions.csv), and [metrics](results/real-pilot/metrics.json).
+
+
+### Expanded catalog
+
+I also assembled an independent [80-source GCVS manifest](data/real_sources_20_per_class.csv), 20 objects per class, with a [reproducible builder](scripts/build_real_catalog.py). Its full score is still pending: per-source IRSA queries timed out, and an 80-position batch job did not return within 15 minutes. The completed result above is still the four-source pilot; no 80-source score is reported. See the [expanded-set method and status](docs/real-gcvs-evaluation.md).
