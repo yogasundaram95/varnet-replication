@@ -1,0 +1,82 @@
+{
+  "run_date_utc": "2026-11-02",
+  "data_source": "NASA/IPAC IRSA NEOWISE-R Single-exposure Source Table",
+  "catalog": "neowiser_p1bs_psd",
+  "checkpoint": "results/varnet_best.pt",
+  "checkpoint_sha256": "6ed3672005ec2204ec1a26ef47e5dcc300e8c1b1d0c6a4cd1b93a823a8715bfa",
+  "input_catalog_sha256": "ca8210805cb7b242287ce5c08c87c8ac63285596d2c74dad255bb573f10b14e1",
+  "device": "mps",
+  "input_sources": 4,
+  "usable_sources": 4,
+  "excluded_sources": 0,
+  "accuracy": 0.5,
+  "macro_precision": 0.375,
+  "macro_recall": 0.5,
+  "macro_f1": 0.41666666666666663,
+  "macro_averaging_scope": "classes with at least one usable labeled source",
+  "class_order": [
+    "null",
+    "transient",
+    "pulsator",
+    "transit"
+  ],
+  "per_class": {
+    "null": {
+      "precision": 0,
+      "recall": 0,
+      "f1": 0,
+      "support": 1
+    },
+    "transient": {
+      "precision": 1,
+      "recall": 1,
+      "f1": 1,
+      "support": 1
+    },
+    "pulsator": {
+      "precision": 0,
+      "recall": 0,
+      "f1": 0,
+      "support": 1
+    },
+    "transit": {
+      "precision": 0.5,
+      "recall": 1,
+      "f1": 0.6666666666666666,
+      "support": 1
+    }
+  },
+  "confusion_matrix_rows_true_columns_predicted": [
+    [
+      0,
+      0,
+      0,
+      1
+    ],
+    [
+      0,
+      1,
+      0,
+      0
+    ],
+    [
+      1,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      1
+    ]
+  ],
+  "quality_policy": {
+    "cone_radius_arcsec": 3,
+    "minimum_points": 32,
+    "clean_w1_cc_flags_only": true,
+    "positive_qual_frame_only_when_column_present": true
+  },
+  "note": "Exploratory four-object pilot only; one source per class is not a benchmark and results are not comparable to the paper's validation score."
+}
