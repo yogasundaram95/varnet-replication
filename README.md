@@ -153,4 +153,4 @@ I queried real IRSA W1 light curves for four documented sources (one per class):
 
 ### Expanded catalog
 
-I also assembled an independent [80-source GCVS manifest](data/real_sources_20_per_class.csv), 20 objects per class, with a [reproducible builder](scripts/build_real_catalog.py). Its full scoring run is pending: IRSA connection timeouts interrupted the archive queries in this session. The completed result above is still the four-source pilot; no 80-source score is reported. See the [expanded-set method and status](docs/real-gcvs-evaluation.md).
+I also assembled an independent [80-source GCVS manifest](data/real_sources_20_per_class.csv), 20 objects per class, with a [reproducible builder](scripts/build_real_catalog.py). Its full score is still pending: per-source IRSA queries timed out, and an 80-position batch job did not return within 15 minutes. The completed result above is still the four-source pilot; no 80-source score is reported. See the [expanded-set method and status](docs/real-gcvs-evaluation.md).
