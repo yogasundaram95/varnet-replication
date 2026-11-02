@@ -7,10 +7,12 @@ NEOWISE-R Single-exposure Source Table; no synthetic observations are used.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 from pathlib import Path
 import time
+from datetime import datetime, timezone
 
 import numpy as np
 import pandas as pd
@@ -168,9 +170,12 @@ def main():
     )
     supported = support > 0
     metrics = {
+        "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "data_source": "NASA/IPAC IRSA NEOWISE-R Single-exposure Source Table",
         "catalog": CATALOG,
         "checkpoint": str(args.checkpoint),
+        "checkpoint_sha256": hashlib.sha256(Path(args.checkpoint).read_bytes()).hexdigest(),
+        "input_catalog_sha256": hashlib.sha256(Path(args.catalog).read_bytes()).hexdigest(),
         "device": device,
         "input_sources": len(sources),
         "usable_sources": len(curves),
